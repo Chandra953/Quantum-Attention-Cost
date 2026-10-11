@@ -2,3 +2,7 @@ data/
 __pycache__/
 *.pyc
 results/*.txt
+paper/preview/
+paper/paper.pdf
+paper/*.log
+results/locks/

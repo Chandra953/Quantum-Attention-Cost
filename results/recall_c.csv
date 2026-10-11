@@ -1,0 +1,2 @@
+model,K,seed,test_acc,final_loss,params,seconds
+window-w4+softmax,64,0,0.4071044921875,2.8551411628723145,92800,370.0

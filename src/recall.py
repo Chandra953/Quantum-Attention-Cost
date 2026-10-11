@@ -239,9 +239,24 @@ if __name__ == "__main__":
     Ks = [int(k) for k in sys.argv[2].split(",")] if len(sys.argv) > 2 else [4, 8, 16, 32]
     seeds = range(int(sys.argv[3])) if len(sys.argv) > 3 else range(3)
     out = sys.argv[4] if len(sys.argv) > 4 else "recall.csv"
+    done = set()                       # resume: skip (model, K, seed) already in any recall_*.csv
+    for fname in os.listdir(OUT):
+        if fname.startswith("recall") and fname.endswith(".csv"):
+            with open(os.path.join(OUT, fname)) as fh:
+                for row in csv.DictReader(fh):
+                    done.add((row["model"], int(row["K"]), int(row["seed"])))
     for K in Ks:
         for s in seeds:
             for kind in kinds:
+                if (kind, K, s) in done:
+                    continue
+                lock_dir = os.path.join(OUT, "locks")      # lets parallel workers share one grid
+                os.makedirs(lock_dir, exist_ok=True)
+                try:
+                    os.close(os.open(os.path.join(lock_dir, f"{kind}_{K}_{s}".replace("+", "_")),
+                                     os.O_CREAT | os.O_EXCL))
+                except FileExistsError:
+                    continue
                 r = run(kind, K, s)
                 print(r, flush=True)
                 write_csv(out, [r])

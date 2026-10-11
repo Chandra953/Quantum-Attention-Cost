@@ -1,66 +1,101 @@
 """
-Feasibility map: quantum hardware vs exact classical evaluation of fidelity attention.
+Cost of training fidelity attention: quantum hardware vs exact classical simulation.
 
-For a register of n qubits, compare the cost of ONE training step on ONE sequence of
-length N:
+Setting: one training step on one sequence of N tokens, n qubits, L ansatz layers,
+P = 2n(L+1) angles per score circuit (2n encoded + 2nL trainable), value width d.
 
-Quantum hardware (pairwise overlaps, parameter-shift gradients):
-    circuits = N^2 * (1 + 2P)          P = 2n + 2nL trainable+encoded angles per score
-    shots    = circuits * S(n),        S(n) = 1 / Var[grad](n)  (resolve a typical gradient at SNR 1)
-    time     = shots / shot_rate
+QUANTUM (Theorem 1, most favourable to quantum):
+  Every score needs >= 1 shot for each of its 1 + 2P circuits (forward + parameter shift).
+  A shifted score s is a Bernoulli mean with variance p(1-p)/S, p ~ E[s].
+  Even if per-score gradients add perfectly coherently across the N^2 pairs, resolving the
+  gradient of a shared parameter at SNR >= 1 needs S >= p / (2 N^2 V) shots per circuit,
+  where V = Var[ds/dtheta]. Hence
+      shots >= (1 + 2P) * max(N^2, p / (2 V)).
+  (Incoherent aggregation multiplies the second term by N^2.)
 
-Exact classical evaluation (Proposition 2: explicit 4^n features, linear in N):
-    flops  = N * (2 * g(n) * 2^n + 2 * 4^n * d) * 3     g(n) = n(L+1) gates per state; x3 for backward
-    memory = 4^n * d * 8 bytes  (prefix-sum state per head)
-    time   = flops / flop_rate
+CLASSICAL (exact, Propositions 1-2 of Paper 1), cheaper of two algorithms:
+  pairwise : prepare N states (2^n amplitudes), N^2 overlaps      time ~ 6 [2 N g 2^n + 2 N^2 2^n], memory ~ 2 * 2^n * 16 B
+  linear   : explicit 4^n features, prefix sums                   time ~ 6 [2 N g 2^n + 4 N 4^n d],  memory ~ 4^n d * 8 B
+  g = n (L + 1) gates per state; factor 6 ~ forward + backward. Streaming keeps memory per head.
 
-Var[grad](n) is the exponential fit to the measured gradient variance of the
-quantum layer (Paper 1 data, L = 2): Var ~ a * r^n. Extrapolating the fit
-beyond n = 10 is an explicit assumption of this analysis.
+V(n) and p(n) are exponential fits to measured data (results/scaling.csv); extrapolation
+beyond n = 12 is an explicit assumption.
 """
 import csv
+import itertools
 import math
 import os
-import sys
 
 import numpy as np
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-GRAD = os.path.join(HERE, "..", "..", "quantum-fidelity-attention", "results", "gradient_variance.csv")
+SCALING = os.path.join(HERE, "..", "results", "scaling.csv")
+DAY, YEAR = 86400.0, 3.156e7
 
 
-def fit_variance(path=GRAD, L=2, n_min=4):
-    g = pd.read_csv(path)
-    s = g[(g.L == L) & (g.n >= n_min)]
-    b, a = np.polyfit(s.n, np.log(s.grad_var), 1)
-    return math.exp(a), math.exp(b)
+def fits(L):
+    s = pd.read_csv(SCALING)
+    s = s[(s.L == L) & (s.n >= 4)]
+    bv, av = np.polyfit(s.n, np.log(s.grad_var), 1)
+    bp, ap = np.polyfit(s.n, np.log(s.score_mean), 1)
+    return dict(aV=math.exp(av), rV=math.exp(bv), ap=math.exp(ap), rp=math.exp(bp))
 
 
-def costs(n, N=512, d=64, L=2, shot_rate=1e4, flop_rate=1e13, var=None):
-    a, r = var
-    P = 2 * n + 2 * n * L
-    shots = N ** 2 * (1 + 2 * P) / (a * r ** n)
-    q_time = shots / shot_rate
-    flops = N * (2 * n * (L + 1) * 2 ** n + 2 * 4 ** n * d) * 3
-    c_time = flops / flop_rate
-    c_mem = 4 ** n * d * 8
-    return dict(n=n, quantum_shots=shots, quantum_seconds=q_time,
-                classical_flops=flops, classical_seconds=c_time, classical_bytes=c_mem)
+def quantum_shots(n, N, L, f, coherent=True):
+    P = 2 * n * (L + 1)
+    V = f["aV"] * f["rV"] ** n
+    p = f["ap"] * f["rp"] ** n
+    need = p / (2 * V)
+    return (1 + 2 * P) * (max(N ** 2, need) if coherent else N ** 2 * max(1.0, need))
+
+
+def classical(n, N, L, d, flop_rate, mem):
+    g = n * (L + 1)
+    options = []
+    pair_t = 6 * (2 * N * g * 2 ** n + 2 * N ** 2 * 2 ** n)
+    if 2 * 2 ** n * 16 <= mem:
+        options.append(pair_t / flop_rate)
+    lin_t = 6 * (2 * N * g * 2 ** n + 4 * N * 4 ** n * d)
+    if 4 ** n * d * 8 <= mem:
+        options.append(lin_t / flop_rate)
+    return min(options) if options else math.inf
+
+
+def scan(L=4, d=64, shot_rate=1e4, flop_rate=1e13, mem=1e12, coherent=True,
+         ns=range(2, 61), Ns=tuple(2 ** k for k in range(6, 25))):
+    f = fits(L)
+    Ns = list(Ns)
+    best = None
+    for n, N in itertools.product(ns, Ns):
+        tq = quantum_shots(n, N, L, f, coherent) / shot_rate
+        tc = classical(n, N, L, d, flop_rate, mem)
+        if tq < tc and (best is None or tq < best[0]):
+            best = (tq, n, N, tc)
+    return f, best
 
 
 if __name__ == "__main__":
-    var = fit_variance()
-    print(f"gradient variance fit: Var ~ {var[0]:.3g} * {var[1]:.4f}^n  ({1 / var[1]:.2f}x smaller per qubit)")
-    rows = [costs(n, var=var) for n in range(2, 41, 2)]
-    out = os.path.join(HERE, "..", "results", "feasibility.csv")
-    with open(out, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
-    day = 86400
-    for r in rows:
-        print(f"n={r['n']:2d}  quantum {r['quantum_seconds']:9.2e} s   classical {r['classical_seconds']:9.2e} s"
-              f"  classical memory {r['classical_bytes'] / 1e9:9.2e} GB")
-    # Is there any n where quantum fits a 1-day budget but classical does not (time or 1 TB memory)?
-    window = [r["n"] for r in rows if r["quantum_seconds"] < day and
-              (r["classical_seconds"] > day or r["classical_bytes"] > 1e12)]
-    print("n where quantum is feasible (<1 day/step) but exact classical is not:", window or "none")
+    rows = []
+    grid = dict(L=[2, 4], shot_rate=[1e4, 1e5, 1e6], flop_rate=[1e13, 1e15, 1e17],
+                mem=[1e12, 1e15], coherent=[True, False])
+    for L, sr, fr, mem, coh in itertools.product(*grid.values()):
+        f, best = scan(L=L, shot_rate=sr, flop_rate=fr, mem=mem, coherent=coh)
+        row = dict(L=L, shot_rate=sr, flop_rate=fr, memory_bytes=mem, coherent=coh,
+                   decay_per_qubit=round(1 / f["rV"], 3))
+        if best:
+            row.update(min_quantum_seconds=best[0], min_quantum_years=best[0] / YEAR,
+                       at_n=best[1], at_N=best[2], classical_seconds_there=best[3])
+        else:
+            row.update(min_quantum_seconds=math.inf, min_quantum_years=math.inf,
+                       at_n=None, at_N=None, classical_seconds_there=None)
+        rows.append(row)
+    out = os.path.join(HERE, "..", "results", "feasibility_sensitivity.csv")
+    with open(out, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
+    df = pd.DataFrame(rows)
+    pd.set_option("display.width", 200)
+    print(df[["L", "shot_rate", "flop_rate", "memory_bytes", "coherent", "decay_per_qubit",
+              "min_quantum_years", "at_n", "at_N"]].to_string(index=False))
+    print("\nFastest any quantum advantage can be (years per training step):",
+          f"{df.min_quantum_years.min():.3g}")
