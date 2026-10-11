@@ -267,8 +267,7 @@ Table~\ref{tab:recall} and Fig.~\ref{fig:recall} give the results. The control w
 Quantum fidelity attention is best understood today as a kernel rather than a speedup. Its score mean and gradient variance decay as $2^{-n}$ and $4^{-n}$, and with these laws we proved that any regime where hardware beats exact classical simulation demands a training time proportional to $\kappa^2/R_s^2$: from 1.5 days per step at $10^6$ shots/s to 64 years at $10^4$ with parameter-shift gradients. Only a backpropagation-like gradient estimator combined with high shot rates would bring training within reach. What Transformers can borrow is the cosine-product kernel itself: computed exactly in linear time with $3^n$ features, it retains associative recall at a fixed state size where additive linear attention collapses, although Based's Taylor kernel remains stronger. Future work should combine CP and Taylor features, test the kernel in multi-layer language models, and look for gradient estimators and readouts that are efficient, local and non-pairwise, the routes our bounds leave open.
 
 \section*{Code and Data Availability}
-Code for the scaling measurements, cost analysis and recall experiments is provided as supplementary material.
-% TODO: add repository URL
+Code, raw results and figure scripts for the scaling measurements, cost analysis and recall experiments are available at \url{https://github.com/Chandra953/Quantum-Attention-Cost}.
 The underlying quantum layer and its validation are in~\cite{singuru2026fidelity}.
 
 \section*{Disclosure of AI Assistance}
