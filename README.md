@@ -2,6 +2,15 @@
 
 **Training-Cost Bounds and Linear-Time Recall for Transformers**
 
+> **Quantum attention is too costly to train on quantum hardware today, but the kernel inside it is useful for AI right now.**
+
+| Part | Question | Finding |
+|---|---|---|
+| 1. Training cost (quantum computing) | How long would it take to train a Transformer with quantum attention on real hardware? | Wherever quantum would beat classical simulation, each training step takes days to years with today's methods. Not (yet) a speedup. |
+| 2. Linear-time recall (AI) | Is the kernel hidden inside quantum attention useful in classical Transformers? | Yes. Run classically at linear cost (CPLA), it recalls 86% vs 12.5% for linear attention with the same memory. |
+
+Here "cost" means compute: time and number of quantum circuit runs, not money.
+
 Chandra Sekhar Singuru · Independent Researcher · [ORCID 0009-0004-0219-1960](https://orcid.org/0009-0004-0219-1960)
 
 Builds on Paper 1: https://github.com/Chandra953/Quantum-Fidelity-Attention
