@@ -21,7 +21,7 @@
 
 \begin{document}
 
-\title{Quantum Attention Is a Kernel, Not a Speedup:\\Training-Cost Bounds and Linear-Time Recall\\for Transformers}
+\title{Quantum Attention Is a Kernel, Not (Yet) a Speedup:\\Training-Cost Bounds and Linear-Time Recall\\for Transformers}
 
 \author{\IEEEauthorblockN{Chandra Sekhar Singuru\,\orcidlink{0009-0004-0219-1960}}
 \IEEEauthorblockA{\textit{Independent Researcher}\\
@@ -33,7 +33,7 @@ ORCID: 0009-0004-0219-1960}
 \maketitle
 
 \begin{abstract}
-Quantum self-attention computes Transformer attention scores as overlaps of quantum states. We ask whether this is worth doing on quantum hardware, and what classical Transformers should borrow from it. We measure two scaling laws of the fidelity attention score: its mean decays as $2^{-n}$ and its gradient variance as approximately $4^{-n}$ in the number of qubits $n$ (fitted rate $3.97$, 95\% interval $3.85$--$4.06$). Combining them with Bernoulli shot noise and parameter-shift gradients, we prove a lower bound on the shots per training step and a closed-form condition for any quantum advantage over exact classical simulation. The minimum training time inside any advantage regime scales with the inverse square of the hardware shot rate: at least 64 years per step on one sequence at $10^4$ shots/s and 1.5 days at $10^6$, and a sweep over 72 hardware scenarios confirms that a $10^4$-step training run is out of reach in every case. On the classical side, we give an exact $3^n$-dimensional feature map for the cosine-product kernel that underlies fidelity attention and evaluate the resulting linear-time layer, CPLA, on multi-query associative recall in two-layer Transformers. At an identical 81-dimensional state, CPLA retains 86\% recall at 16 key-value pairs where standard linear attention falls to 12.5\%, and it far exceeds Performer; it trails the second-order Taylor kernel of Based by 4--13 points at moderate load, and no fixed-state method survives 32 pairs. Quantum attention thus contributes a useful multiplicative kernel, not a computational speedup.
+Quantum self-attention computes Transformer attention scores as overlaps of quantum states. We ask whether this is worth doing on quantum hardware, and what classical Transformers should borrow from it. We measure two scaling laws of the fidelity attention score: its mean decays as $2^{-n}$ and its gradient variance as approximately $4^{-n}$ in the number of qubits $n$ (fitted rate $3.97$, 95\% interval $3.85$--$4.06$). Combining them with Bernoulli shot noise and parameter-shift gradients, we prove a lower bound on the shots per training step and a closed-form condition for any quantum advantage over exact classical simulation. The minimum training time inside any advantage regime scales as $\kappa^2/R_s^2$, where $\kappa$ is the number of circuits per token pair and $R_s$ the shot rate. With parameter-shift gradients this is at least 64 years per step on one sequence at $10^4$ shots/s and 1.5 days at $10^6$. A sweep over 144 hardware scenarios shows that training becomes practical only if three conditions hold together: a backpropagation-like gradient estimator, which no known construction provides for this circuit; coherent aggregation of gradients across token pairs; and at least $10^5$ shots/s. On the classical side, we give an exact $3^n$-dimensional feature map for the cosine-product kernel that underlies fidelity attention and evaluate the resulting linear-time layer, CPLA, on multi-query associative recall in two-layer Transformers. At an identical 81-dimensional state, CPLA retains 86\% recall at 16 key-value pairs where standard linear attention falls to 12.5\%, and it far exceeds Performer; it trails the second-order Taylor kernel of Based by 4--13 points at moderate load, and no fixed-state method survives 32 pairs. Quantum attention thus contributes a useful multiplicative kernel; a speedup would require gradient estimators and shot rates beyond those available today.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -56,8 +56,8 @@ Quantum self-attention has been proposed as another route~\cite{li2024qsann,zhao
 \noindent Our contributions are:
 \begin{itemize}
   \item \textbf{Two measured scaling laws} for the quantum fidelity score: its mean decays as $2^{-n}$ and its gradient variance as $\approx 4^{-n}$ in the number of qubits $n$ (Section~\ref{sec:scaling}).
-  \item \textbf{A training-cost theorem.} Accounting for Bernoulli shot noise, parameter-shift gradients and the most quantum-favourable aggregation of gradients, we derive a lower bound on the shots per training step and a closed-form condition for any quantum advantage over exact classical simulation (Section~\ref{sec:cost}).
-  \item \textbf{A quantitative verdict.} Any regime in which quantum hardware is cheaper than exact classical simulation needs at least 1.5 days per training step on a single sequence at $10^6$ shots/s, and at least 64 years at $10^4$ shots/s; a numerical sweep over 72 hardware scenarios agrees.
+  \item \textbf{A training-cost theorem.} Accounting for Bernoulli shot noise, the number of circuits per gradient and the most quantum-favourable aggregation of gradients, we derive a lower bound on the shots per training step and a closed-form condition for any quantum advantage over exact classical simulation (Section~\ref{sec:cost}).
+  \item \textbf{A quantitative verdict.} With parameter-shift gradients, any regime in which quantum hardware is cheaper than exact classical simulation needs at least 1.5 days per training step on a single sequence at $10^6$ shots/s and 64 years at $10^4$; an idealized gradient estimator would shorten this to seconds at $10^6$ shots/s, and we quantify both cases over 144 hardware scenarios.
   \item \textbf{An exact $3^n$-dimensional feature map} for the CP kernel, smaller than the $4^n$ of~\cite{singuru2026fidelity}, and an evaluation of the resulting linear-time layer (\cpla) on multi-query associative recall against Based~\cite{arora2024based}, linear attention and Performer (Section~\ref{sec:recall}).
 \end{itemize}
 
@@ -66,16 +66,16 @@ Quantum self-attention has been proposed as another route~\cite{li2024qsann,zhao
 % ===========================================================================
 
 \subsection{Efficient Attention and Recall}
-Viewing attention as a kernel smoother~\cite{tsai2019dissection} separates the similarity function from the rest of the layer. Linear attention~\cite{katharopoulos2020linear} uses a positive feature map so that the sum over keys can be reassociated, giving cost linear in $N$; Performer~\cite{choromanski2021performer} approximates the softmax kernel with random features, and cosFormer~\cite{qin2022cosformer} modulates scores with a cosine of token distance. Zoology~\cite{arora2024zoology} introduced multi-query associative recall (MQAR) and showed that efficient architectures lag attention on it. Based~\cite{arora2024based} combines a small sliding window with linear attention built on a second-order Taylor approximation of the exponential, trading recurrent-state size for recall.
+Tsai \emph{et al.}~\cite{tsai2019dissection} interpret attention as kernel smoothing, which lets the similarity function be studied apart from the projections around it. Linear attention~\cite{katharopoulos2020linear} uses a positive feature map so that the sum over keys can be reassociated, giving cost linear in $N$; Performer~\cite{choromanski2021performer} estimates softmax attention through positive random projections, and cosFormer~\cite{qin2022cosformer} modulates scores with a cosine of token distance. Zoology~\cite{arora2024zoology} introduced multi-query associative recall (MQAR) and showed that efficient architectures lag attention on it. Based~\cite{arora2024based} pairs a small sliding window with linear attention whose features expand $\exp(q\cdot k)$ to second order, trading recurrent-state size for recall.
 
 \subsection{Quantum Self-Attention}
-QSANN~\cite{li2024qsann} scores queries and keys from single Pauli-$Z$ measurements; QKSAN~\cite{zhao2024qksan} uses quantum kernel overlaps; QMSAN~\cite{chen2024qmsan} uses swap tests between mixed states; Pecilli and Rosati~\cite{pecilli2026overlap} drop the softmax to obtain gate complexity linear in sequence length; and Xu \emph{et al.}~\cite{xu2026higher} build higher-order interactions from expectation read-outs. A recent survey~\cite{zhang2025survey} notes that pairwise quantum attention keeps the quadratic dependence on $N$. Our prior work~\cite{singuru2026fidelity} reduced fidelity attention exactly to classical computation. None of these works analyses the end-to-end cost of training.
+QSANN~\cite{li2024qsann} scores queries and keys from single Pauli-$Z$ measurements; QKSAN~\cite{zhao2024qksan} uses quantum kernel overlaps; QMSAN~\cite{chen2024qmsan} uses swap tests between mixed states; Pecilli and Rosati~\cite{pecilli2026overlap} drop the softmax to obtain gate complexity linear in sequence length; and Xu \emph{et al.}~\cite{xu2026higher} build higher-order interactions from expectation read-outs. A recent survey~\cite{zhang2025survey} observes that scoring token pairs one at a time on a quantum device does not escape the $N^2$ cost of classical attention. Our prior work~\cite{singuru2026fidelity} reduced fidelity attention exactly to classical computation. None of these works analyses the end-to-end cost of training.
 
 \subsection{Cost and Trainability of Quantum Kernels}
-Fidelity kernels~\cite{havlicek2019supervised} can concentrate exponentially, so that distinguishing inputs needs exponentially many shots~\cite{thanasilp2024concentration}. Slattery \emph{et al.}~\cite{slattery2023evidence} found that well-tuned fidelity kernels are approximated by classical kernels, and Bowles \emph{et al.}~\cite{bowles2024benchmarking} found no systematic advantage of quantum models in benchmarks. Miroszewski \emph{et al.}~\cite{miroszewski2024shots} estimated the shots needed to \emph{evaluate} quantum kernel matrices and compared them with classical simulation, concluding that quantum utility may appear above about 40 qubits. Barren plateaus~\cite{mcclean2018barren}, particularly for global observables~\cite{cerezo2021cost}, make gradients vanish exponentially, and their provable absence often coincides with classical simulability~\cite{cerezo2025simulability}. We add the attention-specific, training-time analysis: quadratic pairs, gradient estimation, and comparison against the linear-time classical reduction.
+Fidelity kernels~\cite{havlicek2019supervised} can concentrate exponentially, so that distinguishing inputs needs exponentially many shots~\cite{thanasilp2024concentration}. Slattery \emph{et al.}~\cite{slattery2023evidence} found that well-tuned fidelity kernels are approximated by classical kernels, and Bowles \emph{et al.}~\cite{bowles2024benchmarking} found no systematic advantage of quantum models in benchmarks. Miroszewski \emph{et al.}~\cite{miroszewski2024shots} estimated the shots needed to \emph{evaluate} quantum kernel matrices and compared them with classical simulation, concluding that quantum utility may appear above about 40 qubits. Bowles \emph{et al.}~\cite{bowles2025backprop} showed that circuits with commuting generators admit gradient estimation with far fewer circuits than the parameter-shift rule. Barren plateaus~\cite{mcclean2018barren}, particularly for global observables~\cite{cerezo2021cost}, make gradients vanish exponentially, and their provable absence often coincides with classical simulability~\cite{cerezo2025simulability}. We add the attention-specific, training-time analysis: quadratic pairs, gradient estimation, and comparison against the linear-time classical reduction.
 
 % ===========================================================================
-\section{Fidelity Attention and Its Classical Reduction}
+\section{Background: Quantum Fidelity Attention}
 \label{sec:prelim}
 % ===========================================================================
 
@@ -83,9 +83,9 @@ Each token embedding $x$ is mapped to $n$ angles $\phi(x)=\pi\tanh(Ax)$ and enco
 \begin{equation}
 s_{ij}=\left|\langle\psi_K(x_j)|\psi_Q(x_i)\rangle\right|^2,
 \end{equation}
-estimated on hardware with a compute--uncompute circuit whose all-zeros outcome probability equals $s_{ij}$~\cite{singuru2026fidelity}. Each score circuit has $P=2n+2nL=2n(L+1)$ rotation angles, and gradients follow the parameter-shift rule $\partial s/\partial a=\frac12[s(a+\frac{\pi}{2})-s(a-\frac{\pi}{2})]$~\cite{schuld2019gradients}, so a training step evaluates $1+2P$ circuits per token pair.
+estimated on hardware with a compute--uncompute circuit whose all-zeros outcome probability equals $s_{ij}$~\cite{singuru2026fidelity}. Each score circuit has $P=2n+2nL=2n(L+1)$ rotation angles, and gradients follow the parameter-shift rule $\partial s/\partial a=\frac12[s(a+\frac{\pi}{2})-s(a-\frac{\pi}{2})]$~\cite{schuld2019gradients}, so a training step evaluates $\kappa=1+2P$ circuits per token pair. We keep $\kappa$ general below, since better gradient estimators can lower it~\cite{bowles2025backprop}.
 
-Without an ansatz the score is the CP kernel $s_{ij}=\prod_k\cos^2\!\big((\phi_{ik}-\phi_{jk})/2\big)$, and with any ansatz $s_{ij}$ is an inner product of explicit $4^n$-dimensional features~\cite{singuru2026fidelity}. We sharpen the feature dimension for the CP kernel.
+Without an ansatz the score is the CP kernel $s_{ij}=\prod_k\cos^2\!\big((\phi_{ik}-\phi_{jk})/2\big)$, and with any ansatz $s_{ij}$ can still be written as a dot product of $4^n$-dimensional feature vectors~\cite{singuru2026fidelity}. We sharpen the feature dimension for the CP kernel.
 
 \begin{proposition}[Exact $3^n$ feature map]\label{prop:three}
 Let $f(\phi)=\bigotimes_{k=1}^{n}\frac{1}{\sqrt2}\,[1,\cos\phi_k,\sin\phi_k]\in\mathbb{R}^{3^n}$. Then $\prod_k\cos^2\!\big((a_k-b_k)/2\big)=\langle f(a),f(b)\rangle$.
@@ -136,13 +136,13 @@ Each shot is a Bernoulli trial with success probability $s\approx p$. The two sh
 \begin{theorem}[Quantum shots per step]\label{thm:quantum}
 Under Assumption~\ref{ass:scaling}, resolving the gradient of a shared parameter at signal-to-noise ratio at least one requires, per training step,
 \begin{equation}
-Q\;\ge\;(1+2P)\,\max\!\Big(N^2,\;\frac{p(1-p)}{2V}\Big)
+Q\;\ge\;\kappa\,\max\!\Big(N^2,\;\frac{p(1-p)}{2V}\Big)
 \label{eq:Q}
 \end{equation}
 shots, even if per-pair gradients add perfectly coherently.
 \end{theorem}
 \begin{proof}
-Each of the $N^2$ pairs needs at least one shot on each of its $1+2P$ circuits, giving the first term. The aggregated gradient is $G=\sum_{ij}w_{ij}\hat g_{ij}$, with noise variance $\sum w_{ij}^2\,p(1-p)/(2S)$ by Lemma~\ref{lem:noise}. Its signal satisfies $|\mathbb{E}G|^2\le(\sum|w_{ij}|)^2V\le N^2\sum w_{ij}^2V$ by Cauchy--Schwarz, with equality for perfectly coherent pairs. Signal-to-noise at least one therefore needs $S\ge p(1-p)/(2N^2V)$ shots per circuit, and the total is $N^2(1+2P)S$.
+Each of the $N^2$ pairs needs at least one shot on each of its $\kappa$ circuits, giving the first term. The aggregated gradient is $G=\sum_{ij}w_{ij}\hat g_{ij}$, with noise variance $\sum w_{ij}^2\,p(1-p)/(2S)$ by Lemma~\ref{lem:noise}. Its signal satisfies $|\mathbb{E}G|^2\le(\sum|w_{ij}|)^2V\le N^2\sum w_{ij}^2V$ by Cauchy--Schwarz, with equality for perfectly coherent pairs. Signal-to-noise at least one therefore needs $S\ge p(1-p)/(2N^2V)$ shots per circuit, and the total is $N^2\kappa S$.
 \end{proof}
 \noindent If per-pair gradients are incoherent, the signal grows only as $N$ and the second term in \eqref{eq:Q} is multiplied by $N^2$.
 
@@ -159,24 +159,24 @@ Preparing a state costs $g$ gate applications on $2^n$ amplitudes. The pairwise 
 \end{proof}
 
 \begin{corollary}[Necessary condition for advantage]\label{cor:cond}
-If quantum hardware is faster than the pairwise classical algorithm, then $2^n(1+g/N)>(1+2P)\,F/(12R_s)$.
+If quantum hardware is faster than the pairwise classical algorithm, then $2^n(1+g/N)>\kappa F/(12R_s)$.
 \end{corollary}
 \begin{proof}
-By Theorem~\ref{thm:quantum}, $T_q\ge(1+2P)N^2/R_s$; by Theorem~\ref{thm:classical}, $T_c\le12(N^2+Ng)2^n/F$. Require $T_q<T_c$.
+By Theorem~\ref{thm:quantum}, $T_q\ge\kappa N^2/R_s$; by Theorem~\ref{thm:classical}, $T_c\le12(N^2+Ng)2^n/F$. Require $T_q<T_c$.
 \end{proof}
 
 \begin{corollary}[Minimum time per step]\label{cor:time}
 If $p=2^{-n}$ and $V=a\,4^{-n}$, then whenever quantum hardware beats exact classical simulation with sufficient classical memory,
 \begin{equation}
-T_q\;\ge\;\frac{(1+2P)^2\,F}{24\,a\,R_s^{2}}\cdot\frac{N}{N+g}.
+T_q\;\ge\;\frac{\kappa^2\,F}{24\,a\,R_s^{2}}\cdot\frac{N}{N+g}.
 \label{eq:Tmin}
 \end{equation}
 \end{corollary}
 \begin{proof}
-By Theorem~\ref{thm:quantum}, $T_q\ge(1+2P)\,p(1-p)/(2VR_s)\approx(1+2P)\,2^n/(2aR_s)$. Substituting the lower bound on $2^n$ from Corollary~\ref{cor:cond} gives \eqref{eq:Tmin}.
+By Theorem~\ref{thm:quantum}, $T_q\ge\kappa\,p(1-p)/(2VR_s)\approx\kappa\,2^n/(2aR_s)$. Substituting the lower bound on $2^n$ from Corollary~\ref{cor:cond} gives \eqref{eq:Tmin}.
 \end{proof}
 
-\noindent The bound grows as $1/R_s^2$: hardware shot rate enters quadratically, once through the per-pair floor and once through the gradient-shot requirement. With the measured constants for $L=4$ ($a=1.07$) and $F=10^{13}$ (one workstation), the smallest qualifying register and the resulting bound are $n=36$ and $T_q\ge 64$ years per step at $R_s=10^4$ shots/s; $n=33$ and $198$ days at $10^5$; and $n=29$ and $1.5$ days at $10^6$.
+\noindent The bound grows as $\kappa^2/R_s^2$: both the circuit count and the shot rate enter quadratically, once through the per-pair floor and once through the gradient-shot requirement. With the measured constants for $L=4$ ($a=1.07$), $F=10^{13}$ (one workstation) and parameter-shift gradients ($\kappa=1+2P$), the smallest qualifying register and the resulting bound are $n=36$ and $T_q\ge 64$ years per step at $R_s=10^4$ shots/s; $n=33$ and $198$ days at $10^5$; and $n=29$ and $1.5$ days at $10^6$. A hypothetical estimator returning all gradients from two extra circuits ($\kappa=3$) would lower the bound to $9.8$ hours, $6$ minutes and $3.5$ seconds, at $n=28$, $25$ and $22$. Known constructions of such estimators require commuting generators~\cite{bowles2025backprop}, which the hardware-efficient ansatz used here does not have.
 
 \begin{figure}[t]
 \centering
@@ -188,11 +188,11 @@ By Theorem~\ref{thm:quantum}, $T_q\ge(1+2P)\,p(1-p)/(2VR_s)\approx(1+2P)\,2^n/(2
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/shotrate.pdf}
-\caption{Minimum time per training step over all configurations where quantum hardware beats exact classical simulation, versus hardware shot rate (sweep over $L$, classical flop rate $10^{13}$--$10^{17}$ and memory $10^{12}$--$10^{15}$ bytes).}
+\caption{Minimum time per training step over all configurations where quantum hardware beats exact classical simulation, versus hardware shot rate, for parameter-shift ($\kappa=1+2P$) and idealized ($\kappa=3$) gradient estimators with coherent or incoherent aggregation (sweep over $L$, classical flop rate $10^{13}$--$10^{17}$ and memory $10^{12}$--$10^{15}$ bytes).}
 \label{fig:shotrate}
 \end{figure}
 
-\textit{Numerical sweep.} To avoid relying on the idealized rates, we evaluated \eqref{eq:Q} and \eqref{eq:Tc} with the fitted constants for every $n\le60$ and $N=2^6$ to $2^{24}$, across 72 scenarios: $L\in\{2,4\}$, $R_s\in\{10^4,10^5,10^6\}$, $F\in\{10^{13},10^{15},10^{17}\}$, memory $\in\{1\,\text{TB},1\,\text{PB}\}$ and coherent or incoherent gradients. Fig.~\ref{fig:feasibility} maps the ratio for one scenario and Fig.~\ref{fig:shotrate} summarizes all of them. A quantum advantage region always exists at large $n$ and $N$, but the fastest training step inside it takes at least 0.5 years at $10^4$ shots/s, 3.0 days at $10^5$ and 1.6 hours at $10^6$ with coherent gradients; with incoherent gradients the minima are 2{,}060, 206 and 20.6 years. A modest run of $10^4$ steps is therefore out of reach in every scenario, while the corresponding classical simulation remains tractable or is the cheaper option.
+\textit{Numerical sweep.} To avoid relying on the idealized rates, we evaluated \eqref{eq:Q} and \eqref{eq:Tc} with the fitted constants for every $n\le60$ and $N=2^6$ to $2^{24}$, across 144 scenarios: $L\in\{2,4\}$, $R_s\in\{10^4,10^5,10^6\}$, $F\in\{10^{13},10^{15},10^{17}\}$, memory $\in\{1\,\text{TB},1\,\text{PB}\}$, coherent or incoherent gradients, and $\kappa\in\{1+2P,\,3\}$. Fig.~\ref{fig:feasibility} maps the ratio for one scenario and Fig.~\ref{fig:shotrate} summarizes all of them. A quantum advantage region always exists at large $n$ and $N$. With parameter-shift gradients, the fastest training step inside it takes at least 0.5 years at $10^4$ shots/s, 3.0 days at $10^5$ and 1.6 hours at $10^6$ when gradients aggregate coherently, and 2{,}060, 206 and 20.6 years when they do not; a modest run of $10^4$ steps is out of reach in every such scenario. With the idealized estimator and coherent gradients, the minima fall to 1.4 hours, 37 seconds and 0.8 seconds, so a $10^4$-step run would take 1.6 years, 4.2 days or 2.2 hours; with incoherent gradients they remain 14.7 years, 1.5 years and 54 days per step. Practical training therefore needs a better gradient estimator, coherent gradients and at least $10^5$ shots/s at the same time.
 
 % ===========================================================================
 \section{What Transformers Can Borrow: Associative Recall}
@@ -256,7 +256,7 @@ Table~\ref{tab:recall} and Fig.~\ref{fig:recall} give the results. The control w
 
 \textit{For AI practitioners.} Quantum fidelity attention contributes a kernel, not a computational resource. Its CP form is exactly computable in linear time with $3^n$ features per head, and its usefulness should be judged against efficient-attention baselines at matched state size, as we did here.
 
-\textit{For quantum machine learning.} The cost theorem isolates three levers: the per-pair floor $N^2(1+2P)$, the gradient-shot requirement $p/(2V)$, and the shot rate. Escaping the conclusion would require at least one of: gradient variance decaying more slowly than the score mean squared, which in practice means local rather than global observables~\cite{cerezo2021cost}; a non-pairwise readout that avoids $N^2$ circuits~\cite{pecilli2026overlap}; or shot rates far above $10^6$ per second.
+\textit{For quantum machine learning.} The cost theorem isolates four levers: the circuits per pair $\kappa$, the per-pair floor $N^2\kappa$, the gradient-shot requirement $p/(2V)$, and the shot rate. Practical training would need progress on several at once: gradient estimators with backpropagation-like scaling for entangling ansatzes~\cite{bowles2025backprop}; gradient variance decaying more slowly than the score mean squared, which in practice means local rather than global observables~\cite{cerezo2021cost}; non-pairwise readouts that avoid $N^2$ circuits~\cite{pecilli2026overlap}; and shot rates of $10^5$ per second or more.
 
 \textit{Limitations.} The scaling laws are measured up to 12 qubits and extrapolated (Assumption~\ref{ass:scaling}). The cost model counts shots and floating-point operations and ignores error correction, compilation, communication and classical-quantum latency, all of which would add to the quantum side. The recall experiments use small two-layer models and synthetic data. The recall gap to softmax attention at $K=32$ and the failure of all models at $K=64$ reflect a fixed 2{,}000-step budget; longer training or larger states may change the ranking.
 
@@ -264,13 +264,15 @@ Table~\ref{tab:recall} and Fig.~\ref{fig:recall} give the results. The control w
 \section{Conclusion}
 % ===========================================================================
 
-Quantum fidelity attention is best understood as a kernel, not a speedup. Its score mean and gradient variance decay as $2^{-n}$ and $4^{-n}$, and with these laws we proved that any regime where hardware beats exact classical simulation demands a training time that grows with the inverse square of the shot rate, from 1.5 days per step at $10^6$ shots/s to 64 years at $10^4$. What Transformers can borrow is the cosine-product kernel itself: computed exactly in linear time with $3^n$ features, it retains associative recall at a fixed state size where additive linear attention collapses, although Based's Taylor kernel remains stronger. Future work should combine CP and Taylor features, test the kernel in multi-layer language models, and look for quantum readouts that are local and non-pairwise, the only routes our bounds leave open.
+Quantum fidelity attention is best understood today as a kernel rather than a speedup. Its score mean and gradient variance decay as $2^{-n}$ and $4^{-n}$, and with these laws we proved that any regime where hardware beats exact classical simulation demands a training time proportional to $\kappa^2/R_s^2$: from 1.5 days per step at $10^6$ shots/s to 64 years at $10^4$ with parameter-shift gradients. Only a backpropagation-like gradient estimator combined with high shot rates would bring training within reach. What Transformers can borrow is the cosine-product kernel itself: computed exactly in linear time with $3^n$ features, it retains associative recall at a fixed state size where additive linear attention collapses, although Based's Taylor kernel remains stronger. Future work should combine CP and Taylor features, test the kernel in multi-layer language models, and look for gradient estimators and readouts that are efficient, local and non-pairwise, the routes our bounds leave open.
 
 \section*{Code and Data Availability}
-Code for the scaling measurements, cost analysis and recall experiments is provided as supplementary material. % TODO: add repository URL The underlying quantum layer and its validation are in~\cite{singuru2026fidelity}.
+Code for the scaling measurements, cost analysis and recall experiments is provided as supplementary material.
+% TODO: add repository URL
+The underlying quantum layer and its validation are in~\cite{singuru2026fidelity}.
 
 \section*{Disclosure of AI Assistance}
-Generative AI tools were used to assist with code development, experiment design and drafting of this manuscript. The author reviewed, verified and takes full responsibility for all content.
+The author used generative AI tools to help write code, design experiments and draft the text. All results, derivations and references were checked by the author, who takes full responsibility for the content.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}

@@ -115,6 +115,10 @@ L.~Slattery, R.~Shaydulin, S.~Chakrabarti, M.~Pistoia, S.~Khairy, and S.~M.
 J.~Bowles, S.~Ahmed, and M.~Schuld, ``Better than classical? {T}he subtle art
   of benchmarking quantum machine learning models,'' arXiv:2403.07059, 2024.
 
+\bibitem{bowles2025backprop}
+J.~Bowles, D.~Wierichs, and C.-Y. Park, ``Backpropagation scaling in
+  parameterised quantum circuits,'' \emph{Quantum}, vol.~9, p. 1873, 2025.
+
 \bibitem{mcclean2018barren}
 J.~R. McClean, S.~Boixo, V.~N. Smelyanskiy, R.~Babbush, and H.~Neven, ``Barren
   plateaus in quantum neural network training landscapes,'' \emph{Nature

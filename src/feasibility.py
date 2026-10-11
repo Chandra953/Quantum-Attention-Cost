@@ -42,12 +42,20 @@ def fits(L):
     return dict(aV=math.exp(av), rV=math.exp(bv), ap=math.exp(ap), rp=math.exp(bp))
 
 
-def quantum_shots(n, N, L, f, coherent=True):
-    P = 2 * n * (L + 1)
+def circuits_per_pair(n, L, gradient="shift"):
+    """kappa: circuits per token pair per training step.
+    'shift': parameter-shift rule, 1 + 2P with P = 2n(L+1).
+    'ideal': a hypothetical backpropagation-like estimator that returns all gradients
+             from 2 extra circuits (cf. Bowles et al., Quantum 9, 1873, 2025)."""
+    return 1 + 2 * 2 * n * (L + 1) if gradient == "shift" else 3
+
+
+def quantum_shots(n, N, L, f, coherent=True, gradient="shift"):
+    kappa = circuits_per_pair(n, L, gradient)
     V = f["aV"] * f["rV"] ** n
     p = f["ap"] * f["rp"] ** n
     need = p / (2 * V)
-    return (1 + 2 * P) * (max(N ** 2, need) if coherent else N ** 2 * max(1.0, need))
+    return kappa * (max(N ** 2, need) if coherent else N ** 2 * max(1.0, need))
 
 
 def classical(n, N, L, d, flop_rate, mem):
@@ -62,13 +70,13 @@ def classical(n, N, L, d, flop_rate, mem):
     return min(options) if options else math.inf
 
 
-def scan(L=4, d=64, shot_rate=1e4, flop_rate=1e13, mem=1e12, coherent=True,
+def scan(L=4, d=64, shot_rate=1e4, flop_rate=1e13, mem=1e12, coherent=True, gradient="shift",
          ns=range(2, 61), Ns=tuple(2 ** k for k in range(6, 25))):
     f = fits(L)
     Ns = list(Ns)
     best = None
     for n, N in itertools.product(ns, Ns):
-        tq = quantum_shots(n, N, L, f, coherent) / shot_rate
+        tq = quantum_shots(n, N, L, f, coherent, gradient) / shot_rate
         tc = classical(n, N, L, d, flop_rate, mem)
         if tq < tc and (best is None or tq < best[0]):
             best = (tq, n, N, tc)
@@ -78,10 +86,10 @@ def scan(L=4, d=64, shot_rate=1e4, flop_rate=1e13, mem=1e12, coherent=True,
 if __name__ == "__main__":
     rows = []
     grid = dict(L=[2, 4], shot_rate=[1e4, 1e5, 1e6], flop_rate=[1e13, 1e15, 1e17],
-                mem=[1e12, 1e15], coherent=[True, False])
-    for L, sr, fr, mem, coh in itertools.product(*grid.values()):
-        f, best = scan(L=L, shot_rate=sr, flop_rate=fr, mem=mem, coherent=coh)
-        row = dict(L=L, shot_rate=sr, flop_rate=fr, memory_bytes=mem, coherent=coh,
+                mem=[1e12, 1e15], coherent=[True, False], gradient=["shift", "ideal"])
+    for L, sr, fr, mem, coh, grad in itertools.product(*grid.values()):
+        f, best = scan(L=L, shot_rate=sr, flop_rate=fr, mem=mem, coherent=coh, gradient=grad)
+        row = dict(L=L, shot_rate=sr, flop_rate=fr, memory_bytes=mem, coherent=coh, gradient=grad,
                    decay_per_qubit=round(1 / f["rV"], 3))
         if best:
             row.update(min_quantum_seconds=best[0], min_quantum_years=best[0] / YEAR,
@@ -95,7 +103,6 @@ if __name__ == "__main__":
         w = csv.DictWriter(fh, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
     df = pd.DataFrame(rows)
     pd.set_option("display.width", 200)
-    print(df[["L", "shot_rate", "flop_rate", "memory_bytes", "coherent", "decay_per_qubit",
-              "min_quantum_years", "at_n", "at_N"]].to_string(index=False))
-    print("\nFastest any quantum advantage can be (years per training step):",
-          f"{df.min_quantum_years.min():.3g}")
+    summary = df.groupby(["gradient", "coherent", "shot_rate"]).min_quantum_seconds.min()
+    print("Fastest quantum-advantage training step (seconds), min over L, flop rate, memory:")
+    print(summary.to_string())

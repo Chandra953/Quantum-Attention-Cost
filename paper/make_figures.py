@@ -89,15 +89,20 @@ def fig_feasibility():
 
 def fig_shotrate():
     s = pd.read_csv(os.path.join(RES, "feasibility_sensitivity.csv"))
-    fig, ax = plt.subplots(figsize=(COL, 1.9))
-    for coh, c, lab in [(True, BLUE, "coherent gradients (best case)"), (False, GREY, "incoherent gradients")]:
-        g = s[s.coherent == coh].groupby("shot_rate").min_quantum_seconds.min() / 86400
-        ax.loglog(g.index, g.values, "o-", color=c, ms=3, lw=1.2, label=lab)
-    ax.axhline(1, color="#cccccc", lw=0.7); ax.text(1.05e4, 1.25, "1 day", fontsize=6, color="#888")
-    ax.axhline(365, color="#cccccc", lw=0.7); ax.text(1.05e4, 460, "1 year", fontsize=6, color="#888")
+    fig, ax = plt.subplots(figsize=(COL, 2.35))
+    for grad, coh, c, ls, lab in [("shift", True, BLUE, "o-", "parameter shift, coherent"),
+                                  ("shift", False, BLUE, "o:", "parameter shift, incoherent"),
+                                  ("ideal", True, ORANGE, "s-", "ideal gradients, coherent"),
+                                  ("ideal", False, ORANGE, "s:", "ideal gradients, incoherent")]:
+        g = s[(s.gradient == grad) & (s.coherent == coh)].groupby("shot_rate").min_quantum_seconds.min() / 86400
+        ax.loglog(g.index, g.values, ls, color=c, ms=3, lw=1.1, label=lab)
+    for y, t in [(1 / 24, "1 hour"), (1, "1 day"), (365, "1 year")]:
+        ax.axhline(y, color="#cccccc", lw=0.6); ax.text(1.12e6, y, t, fontsize=5.5, color="#888", va="center")
     ax.set_xlabel("Hardware shot rate (shots/s)")
     ax.set_ylabel("Min. days per training step")
-    ax.legend(frameon=False, loc="upper right")
+    ax.legend(frameon=False, fontsize=5.6, ncol=2, loc="lower left", bbox_to_anchor=(0.0, 1.0),
+              columnspacing=0.8)
+    ax.set_xlim(8e3, 1.25e6)
     ax.grid(color="#e5e5e5", lw=0.5, which="major")
     fig.tight_layout()
     save(fig, "shotrate")
