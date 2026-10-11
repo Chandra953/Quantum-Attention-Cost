@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex paper"] 1791693767.70723 "paper.aux" "paper.bbl" "paper" 1791694345.78178 0
+["bibtex paper"] 1791694390.97476 "paper.aux" "paper.bbl" "paper" 1791694391.56737 0
   "./refs.bib" 1791693766.38521 8329 149946b0a773b55a3bc927076257db39 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/ieeetran/IEEEtran.bst" 1440712899 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "paper.aux" 1791694345.66164 8574 e2682d2bc67982f8709ac7c7310fa994 "pdflatex"
+  "paper.aux" 1791694391.46165 8574 ddf4ed773281fdbb96fcb630e03776e1 "pdflatex"
   (generated)
   "paper.bbl"
   "paper.blg"
   (rewritten before read)
-["pdflatex"] 1791694345.23269 "paper.tex" "paper.pdf" "paper" 1791694345.78233 0
+["pdflatex"] 1791694390.99414 "paper.tex" "paper.pdf" "paper" 1791694391.5676 0
   "/etc/texmf/web2c/texmf.cnf" 1790956343 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/times/ptmb7t.tfm" 1136768653 2172 fd0c924230362ff848a33632ed45dc23 ""
@@ -192,10 +192,10 @@
   "figures/recall.pdf" 1791693141.32157 29707 faa6d67f1fa1e928a4f55081baf73662 ""
   "figures/scaling.pdf" 1791687376.7358 33655 95775b2d9fbe6bddccbff1e5e345183f ""
   "figures/shotrate.pdf" 1791693698.1256 18036 b1ecad0d78727bdd127d1c5d0cbb2802 ""
-  "paper.aux" 1791694345.66164 8574 e2682d2bc67982f8709ac7c7310fa994 "pdflatex"
-  "paper.bbl" 1791693767.71761 6462 5842f5a979d45f29ccfa967052a6223c "bibtex paper"
-  "paper.out" 1791694345.66164 2456 c08222d60b87e675c38f236be3b4ce2e "pdflatex"
-  "paper.tex" 1791694345.14296 28560 88b8de4e31618638c781b0cbb1a20f6c ""
+  "paper.aux" 1791694391.46165 8574 ddf4ed773281fdbb96fcb630e03776e1 "pdflatex"
+  "paper.bbl" 1791694390.98565 6462 5842f5a979d45f29ccfa967052a6223c "bibtex paper"
+  "paper.out" 1791694391.46565 2456 c08222d60b87e675c38f236be3b4ce2e "pdflatex"
+  "paper.tex" 1791694389.60041 28809 211ded5e6b3b065ca62b5e596da1f775 ""
   (generated)
   "paper.aux"
   "paper.log"
