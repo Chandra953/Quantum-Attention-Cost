@@ -34,18 +34,25 @@ def save(fig, name):
 
 def fig_scaling():
     s = pd.read_csv(os.path.join(RES, "scaling.csv"))
-    fig, axes = plt.subplots(1, 2, figsize=(COL, 1.75))
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 2.0))
     for L, alpha in [(2, 0.5), (4, 1.0)]:
         d = s[s.L == L]
-        axes[0].semilogy(d.n, d.grad_var, "o-", color=BLUE, alpha=alpha, ms=2.5, lw=1, label=f"$L={L}$")
-        axes[1].semilogy(d.n, d.score_mean, "o-", color=ORANGE, alpha=alpha, ms=2.5, lw=1, label=f"$L={L}$")
+        axes[0].semilogy(d.n, d.grad_var, "o-", color=BLUE, alpha=alpha, ms=2.5, lw=1, label=f"A, $L={L}$")
+        axes[1].semilogy(d.n, d.score_mean, "o-", color=ORANGE, alpha=alpha, ms=2.5, lw=1, label=f"A, $L={L}$")
+    b_path = os.path.join(RES, "scaling_design_b.csv")
+    if os.path.exists(b_path):                       # second circuit design (robustness check)
+        sb = pd.read_csv(b_path)
+        for L, alpha in [(2, 0.5), (4, 1.0)]:
+            d = sb[sb.L == L]
+            axes[0].semilogy(d.n, d.grad_var, "s:", color=GREEN, alpha=alpha, ms=2.2, lw=0.9, label=f"B, $L={L}$")
+            axes[1].semilogy(d.n, d.score_mean, "s:", color=GREEN, alpha=alpha, ms=2.2, lw=0.9, label=f"B, $L={L}$")
     n = np.arange(2, 13)
     axes[0].semilogy(n, 1.0 * 4.0 ** -n, "--", color=GREY, lw=0.8, label=r"$4^{-n}$")
     axes[1].semilogy(n, 2.0 ** -n, "--", color=GREY, lw=0.8, label=r"$2^{-n}$")
     axes[0].set_ylabel(r"Var$[\partial s/\partial\theta]$"); axes[1].set_ylabel(r"$\mathbb{E}[s]$")
     for ax in axes:
         ax.set_xlabel("Qubits $n$"); ax.set_xticks([2, 4, 6, 8, 10, 12])
-        ax.legend(frameon=False, fontsize=6); ax.grid(color="#e5e5e5", lw=0.5)
+        ax.legend(frameon=False, fontsize=5, ncol=1, handlelength=1.8); ax.grid(color="#e5e5e5", lw=0.5)
     fig.tight_layout(w_pad=1.2)
     save(fig, "scaling")
 

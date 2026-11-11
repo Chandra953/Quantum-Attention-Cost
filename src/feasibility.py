@@ -34,8 +34,8 @@ SCALING = os.path.join(HERE, "..", "results", "scaling.csv")
 DAY, YEAR = 86400.0, 3.156e7
 
 
-def fits(L):
-    s = pd.read_csv(SCALING)
+def fits(L, path=None):
+    s = pd.read_csv(path or SCALING)
     s = s[(s.L == L) & (s.n >= 4)]
     bv, av = np.polyfit(s.n, np.log(s.grad_var), 1)
     bp, ap = np.polyfit(s.n, np.log(s.score_mean), 1)
@@ -71,8 +71,8 @@ def classical(n, N, L, d, flop_rate, mem):
 
 
 def scan(L=4, d=64, shot_rate=1e4, flop_rate=1e13, mem=1e12, coherent=True, gradient="shift",
-         ns=range(2, 61), Ns=tuple(2 ** k for k in range(6, 25))):
-    f = fits(L)
+         ns=range(2, 61), Ns=tuple(2 ** k for k in range(6, 25)), path=None):
+    f = fits(L, path)
     Ns = list(Ns)
     best = None
     for n, N in itertools.product(ns, Ns):
@@ -84,11 +84,14 @@ def scan(L=4, d=64, shot_rate=1e4, flop_rate=1e13, mem=1e12, coherent=True, grad
 
 
 if __name__ == "__main__":
+    import sys
+    design_b = len(sys.argv) > 1 and sys.argv[1] == "--design-b"     # robustness check, Section IV
+    path = SCALING.replace("scaling.csv", "scaling_design_b.csv") if design_b else None
     rows = []
     grid = dict(L=[2, 4], shot_rate=[1e4, 1e5, 1e6], flop_rate=[1e13, 1e15, 1e17],
                 mem=[1e12, 1e15], coherent=[True, False], gradient=["shift", "ideal"])
     for L, sr, fr, mem, coh, grad in itertools.product(*grid.values()):
-        f, best = scan(L=L, shot_rate=sr, flop_rate=fr, mem=mem, coherent=coh, gradient=grad)
+        f, best = scan(L=L, shot_rate=sr, flop_rate=fr, mem=mem, coherent=coh, gradient=grad, path=path)
         row = dict(L=L, shot_rate=sr, flop_rate=fr, memory_bytes=mem, coherent=coh, gradient=grad,
                    decay_per_qubit=round(1 / f["rV"], 3))
         if best:
@@ -98,7 +101,8 @@ if __name__ == "__main__":
             row.update(min_quantum_seconds=math.inf, min_quantum_years=math.inf,
                        at_n=None, at_N=None, classical_seconds_there=None)
         rows.append(row)
-    out = os.path.join(HERE, "..", "results", "feasibility_sensitivity.csv")
+    out = os.path.join(HERE, "..", "results",
+                       "feasibility_sensitivity_design_b.csv" if design_b else "feasibility_sensitivity.csv")
     with open(out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
     df = pd.DataFrame(rows)

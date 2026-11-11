@@ -104,7 +104,7 @@ For one feature, $\cos^2\frac{a-b}{2}=\frac12\big(1+\cos(a-b)\big)=\frac12\big(1
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/scaling.pdf}
-\caption{Gradient variance (left) and mean score (right) of the fidelity attention score at uniformly random parameters, 400 samples per point, for $L=2$ and $L=4$ ansatz layers. Dashed lines show $4^{-n}$ and $2^{-n}$.}
+\caption{Gradient variance (left) and mean score (right) of the fidelity attention score at uniformly random parameters for $L=2$ and $L=4$ ansatz layers: design A (Section~\ref{sec:prelim}, 400 samples per point) and design B ($R_X$ encoding, $R_Y R_Z$ layers, CZ chain; 1{,}600 samples per point). Dashed lines show $4^{-n}$ and $2^{-n}$.}
 \label{fig:scaling}
 \end{figure}
 
@@ -113,7 +113,9 @@ We measured, for $n=2$ to $12$ and $L\in\{2,4\}$, the mean score $p(n)=\mathbb{E
   \item $p(n)\propto 1.99^{-n}$ ($L=2$) and $2.01^{-n}$ ($L=4$), matching the Haar value $\mathbb{E}|\langle\psi|\varphi\rangle|^2=2^{-n}$;
   \item $V(n)\propto 3.53^{-n}$ ($3.27$--$3.83$) for $L=2$ and $3.97^{-n}$ ($3.85$--$4.06$) for $L=4$.
 \end{itemize}
-The deeper circuit reaches the $4^{-n}$ rate expected of a global observable on an approximate 2-design~\cite{mcclean2018barren,cerezo2021cost}. Fig.~\ref{fig:scaling} shows both laws. The cost analysis below uses both, and we state their extrapolation beyond 12 qubits as an assumption.
+The deeper circuit reaches the $4^{-n}$ rate expected of a global observable on an approximate 2-design~\cite{mcclean2018barren,cerezo2021cost}.
+
+\textit{A second circuit design.} To check that these rates are not specific to one circuit, we repeated the measurement for a design B that changes every gate type: $R_X$ angle encoding, layers of $R_Y$ and $R_Z$ rotations on every qubit (complex amplitudes, $2nL$ parameters per state) and a CZ chain in place of the CNOT ring, with 1{,}600 samples per point and the simulator checked against Qiskit to within $10^{-15}$. The mean score again decays as $2.01^{-n}$ at both depths, and the gradient variance as $3.39^{-n}$ ($3.31$--$3.58$) for $L=2$ and $3.70^{-n}$ ($3.52$--$3.84$) for $L=4$, somewhat more slowly than for the first design (design A). Fig.~\ref{fig:scaling} shows both designs. The cost analysis below uses both, and we state their extrapolation beyond 12 qubits as an assumption.
 
 \begin{assumption}\label{ass:scaling}
 For the register sizes considered, $p(n)=c_p\,r_p^{\,n}$ and $V(n)=a\,r_V^{\,n}$ with the fitted constants, and a typical per-pair gradient has magnitude $\sqrt{V(n)}$.
@@ -192,7 +194,7 @@ By Theorem~\ref{thm:quantum}, $T_q\ge\kappa\,p(1-p)/(2VR_s)\approx\kappa\,2^n/(2
 \label{fig:shotrate}
 \end{figure}
 
-\textit{Numerical sweep.} To check the result without the idealized rates, we evaluated \eqref{eq:Q} and \eqref{eq:Tc} with the fitted constants for every $n\le60$ and $N=2^6$ to $2^{24}$, across 144 scenarios: $L\in\{2,4\}$, $R_s\in\{10^4,10^5,10^6\}$, $F\in\{10^{13},10^{15},10^{17}\}$, memory $\in\{1\,\text{TB},1\,\text{PB}\}$, coherent or incoherent gradients, and $\kappa\in\{1+2P,\,3\}$. Fig.~\ref{fig:feasibility} maps the ratio for one scenario and Fig.~\ref{fig:shotrate} summarizes all of them. A quantum advantage region always exists at large $n$ and $N$. With parameter-shift gradients, the fastest training step inside it takes at least 0.5 years at $10^4$ shots/s, 3.0 days at $10^5$ and 1.6 hours at $10^6$ when gradients aggregate coherently, and 2{,}060, 206 and 20.6 years when they do not; a modest run of $10^4$ steps is out of reach in every such scenario. With the idealized estimator and coherent gradients, the minima fall to 1.4 hours, 37 seconds and 0.8 seconds, so a $10^4$-step run would take 1.6 years, 4.2 days or 2.2 hours; with incoherent gradients they remain 14.7 years, 1.5 years and 54 days per step. Training becomes practical only when a better gradient estimator, coherent gradients and at least $10^5$ shots/s are all available.
+\textit{Numerical sweep.} To check the result without the idealized rates, we evaluated \eqref{eq:Q} and \eqref{eq:Tc} with the fitted constants for every $n\le60$ and $N=2^6$ to $2^{24}$, across 144 scenarios: $L\in\{2,4\}$, $R_s\in\{10^4,10^5,10^6\}$, $F\in\{10^{13},10^{15},10^{17}\}$, memory $\in\{1\,\text{TB},1\,\text{PB}\}$, coherent or incoherent gradients, and $\kappa\in\{1+2P,\,3\}$. Fig.~\ref{fig:feasibility} maps the ratio for one scenario and Fig.~\ref{fig:shotrate} summarizes all of them. A quantum advantage region always exists at large $n$ and $N$. With parameter-shift gradients, the fastest training step inside it takes at least 0.5 years at $10^4$ shots/s, 3.0 days at $10^5$ and 1.6 hours at $10^6$ when gradients aggregate coherently, and 2{,}060, 206 and 20.6 years when they do not; a modest run of $10^4$ steps is out of reach in every such scenario. With the idealized estimator and coherent gradients, the minima fall to 1.4 hours, 37 seconds and 0.8 seconds, so a $10^4$-step run would take 1.6 years, 4.2 days or 2.2 hours; with incoherent gradients they remain 14.7 years, 1.5 years and 54 days per step. Training becomes practical only when a better gradient estimator, coherent gradients and at least $10^5$ shots/s are all available. Repeating the sweep with the constants fitted for design B changes each of these twelve minima by at most a factor of 3.4 and leaves the conclusion unchanged.
 
 % ===========================================================================
 \section{What Transformers Can Borrow: Associative Recall}
