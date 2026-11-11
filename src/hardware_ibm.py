@@ -25,7 +25,9 @@ from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "..", "results", "hardware_ibm.csv")
+_RESULTS = os.path.join(HERE, "..", "results")
+# inside the repository: results/hardware_ibm.csv; script downloaded on its own: next to the script
+OUT = os.path.join(_RESULTS if os.path.isdir(_RESULTS) else HERE, "hardware_ibm.csv")
 
 
 def state_circuit(x, theta, n, L):
@@ -104,7 +106,7 @@ def main():
         for j in jobs:
             w.writerow(dict(backend=backend, n=j["n"], L=args.layers, pair=j["pair"], shots=args.shots,
                             exact=j["exact"], measured=j["measured"]))
-    print(f"\nbackend: {backend}   (written to {os.path.relpath(out)})")
+    print(f"\nbackend: {backend}   (written to {os.path.abspath(out)})")
     # Device noise also pushes P(0...0) towards 2^-n, so the mean alone cannot separate signal from
     # decoherence; the per-circuit correlation between measured and exact scores can.
     print(" n   mean exact   mean measured   2^-n     corr(measured, exact)")
