@@ -180,3 +180,13 @@ def test_headline_recall_numbers():
 
     assert round(mean_acc("cpla", 16), 2) == 0.86
     assert round(mean_acc("elu-d81", 16), 3) == 0.125
+
+
+def test_cpla_feature_map_path_equals_pairwise_path():
+    """The fast feature-map CPLA path (used for language modelling) computes the same function."""
+    torch.manual_seed(2)
+    att = R.Attention(d=16, heads=2, kind="cpla")
+    x = torch.randn(2, 13, 16)
+    y_pair = att(x)
+    att.use_features = True
+    assert torch.allclose(att(x), y_pair, atol=1e-9)

@@ -14,3 +14,5 @@ paper/*.fdb_latexmk
 paper/*.log
 paper/*.blg
 paper/*.out
+logs/
+results/hardware_ibm_dryrun.csv

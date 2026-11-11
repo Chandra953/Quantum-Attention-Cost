@@ -124,6 +124,10 @@ class Attention(nn.Module):
                 return torch.cat([torch.ones_like(t[..., :1]), t,
                                   (t.unsqueeze(-1) * t.unsqueeze(-2)).flatten(-2) / math.sqrt(2)], -1)
             y = LINEAR_IMPL(phi(q), phi(k), v)
+        elif self.kind == "cpla" and self.power == 1 and getattr(self, "use_features", False):
+            # same function via the exact 3^n feature map (Proposition 1); faster for long contexts
+            pq, pk = math.pi * torch.tanh(q), math.pi * torch.tanh(k)
+            y = LINEAR_IMPL(cp_features(pq), cp_features(pk), v)
         elif self.kind in ("cpla", "cp-softmax"):
             pq, pk = math.pi * torch.tanh(q), math.pi * torch.tanh(k)
             # CP kernel computed pairwise (identical to the 3^n / (2p+1)^n feature-map inner product)
