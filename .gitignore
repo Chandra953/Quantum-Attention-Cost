@@ -6,3 +6,11 @@ paper/preview/
 paper/paper.pdf
 paper/*.log
 results/locks/
+
+# LaTeX build files
+paper/*.aux
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.log
+paper/*.blg
+paper/*.out
