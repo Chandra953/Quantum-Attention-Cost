@@ -34,6 +34,7 @@ Builds on Paper 1: https://github.com/Chandra953/Quantum-Fidelity-Attention
 src/scaling.py       gradient variance and score mean vs qubits (n = 2..12)
 src/feasibility.py   quantum vs exact-classical training cost, sensitivity sweep
 src/recall.py        multi-query associative recall, 2-layer Transformers, 8 attention variants
+tests/               checks that the code matches the paper and the reported numbers follow from results/
 paper/               IEEEtran source, figures, compiled PDF
 results/             raw CSVs behind every number
 ```
@@ -41,6 +42,8 @@ results/             raw CSVs behind every number
 
 ## Reproduce
 ```bash
+pip install -r requirements.txt
+pytest -q tests          # 29 checks: Proposition 1, causality, cost model, reported numbers
 python src/scaling.py 400
 python src/feasibility.py
 W=window-w4; python src/recall.py "$W+softmax,$W+cpla,$W+cp-softmax,$W+taylor-d8,$W+taylor-d16,$W+elu-d81,$W+performer-d16,$W+window-w4" 8,16,32 3
