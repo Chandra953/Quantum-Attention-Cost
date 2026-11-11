@@ -145,8 +145,30 @@ def fig_recall():
     save(fig, "recall")
 
 
+def fig_hardware():
+    d = pd.read_csv(os.path.join(RES, "hardware_ibm.csv"))
+    fig, ax = plt.subplots(figsize=(COL, 2.1))
+    cmap = plt.get_cmap("viridis")
+    ns = sorted(d.n.unique())
+    for i, n in enumerate(ns):
+        g = d[d.n == n]
+        ax.loglog(g.exact.clip(lower=1e-5), g.measured.clip(lower=1e-5), "o", ms=2.6, alpha=0.8,
+                  color=cmap(i / max(1, len(ns) - 1)), label=f"$n={n}$")
+    lim = [1e-5, 1.0]
+    ax.plot(lim, lim, "--", color=GREY, lw=0.8)
+    floor = 1 / d.shots.iloc[0]                       # one count in S shots
+    ax.axhline(floor, color=RED, lw=0.7, ls=":")
+    ax.text(1.2e-2, floor * 0.42, f"one count in {d.shots.iloc[0]:,} shots", fontsize=5.8, color=RED)
+    ax.set_xlim(lim); ax.set_ylim(lim)
+    ax.set_xlabel("Exact score $s$"); ax.set_ylabel("Measured on ibm_fez")
+    ax.legend(frameon=False, fontsize=5.8, ncol=2, loc="upper left")
+    ax.grid(color="#e5e5e5", lw=0.5)
+    fig.tight_layout()
+    save(fig, "hardware")
+
+
 if __name__ == "__main__":
-    which = sys.argv[1:] or ["scaling", "feasibility", "shotrate", "recall"]
+    which = sys.argv[1:] or ["scaling", "feasibility", "shotrate", "recall", "hardware"]
     for w in which:
         globals()["fig_" + w]()
     print("done")

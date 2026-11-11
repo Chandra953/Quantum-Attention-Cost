@@ -190,3 +190,15 @@ def test_cpla_feature_map_path_equals_pairwise_path():
     y_pair = att(x)
     att.use_features = True
     assert torch.allclose(att(x), y_pair, atol=1e-9)
+
+
+def test_hardware_results_match_their_circuits():
+    """The exact scores stored with the IBM hardware run are regenerated from the script's seed,
+    and the headline agreement statistics follow from the stored data."""
+    import pandas as pd
+    import hardware_ibm as H
+    d = pd.read_csv(os.path.join(ROOT, "results", "hardware_ibm.csv"))
+    jobs = H.build(sorted(d.n.unique()), int(d.L.iloc[0]), 20, 2026)
+    assert np.allclose([j["exact"] for j in jobs], d.exact.values, atol=1e-12)
+    assert round(np.corrcoef(d.exact, d.measured)[0, 1], 3) == 0.998
+    assert (d.measured - d.exact).abs().mean() == pytest.approx(0.007, abs=5e-4)

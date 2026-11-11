@@ -117,6 +117,15 @@ The deeper circuit reaches the $4^{-n}$ rate expected of a global observable on 
 
 \textit{A second circuit design.} To check that these rates are not specific to one circuit, we repeated the measurement for a design B that changes every gate type: $R_X$ angle encoding, layers of $R_Y$ and $R_Z$ rotations on every qubit (complex amplitudes, $2nL$ parameters per state) and a CZ chain in place of the CNOT ring, with 1{,}600 samples per point and the simulator checked against Qiskit to within $10^{-15}$. The mean score again decays as $2.01^{-n}$ at both depths, and the gradient variance as $3.39^{-n}$ ($3.31$--$3.58$) for $L=2$ and $3.70^{-n}$ ($3.52$--$3.84$) for $L=4$, somewhat more slowly than for the first design (design A). Fig.~\ref{fig:scaling} shows both designs. The cost analysis below uses both, and we state their extrapolation beyond 12 qubits as an assumption.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/hardware.pdf}
+\caption{Fidelity scores measured on IBM \texttt{ibm\_fez} (2{,}000 shots per circuit) against their exact values, for 20 random circuits per register size (design A, $L=2$). Scores below one count per 2{,}000 shots (dotted) cannot be resolved, which is the shot cost of Lemma~\ref{lem:noise} in practice.}
+\label{fig:hardware}
+\end{figure}
+
+\textit{Hardware check.} We ran the compute--uncompute circuit of design A ($L=2$) on IBM's 156-qubit Heron processor \texttt{ibm\_fez} for $n\in\{2,3,4,5,6,8\}$, with 20 random input--parameter pairs per size and 2{,}000 shots per circuit (120 circuits; Fig.~\ref{fig:hardware}). Across all circuits the measured scores correlate with the exact values at $r=0.998$ ($r\ge0.95$ for every $n$), with a mean absolute error of $0.007$, and the measured mean decays as $2.09^{-n}$ for $n\ge4$, against $2.22^{-n}$ for the exact values of the same circuits. At $n=8$ the binomial standard error of a single 2{,}000-shot estimate ($0.0008$) is already about a third of the mean score, the shot cost that Lemma~\ref{lem:noise} formalizes.
+
 \begin{assumption}\label{ass:scaling}
 For the register sizes considered, $p(n)=c_p\,r_p^{\,n}$ and $V(n)=a\,r_V^{\,n}$ with the fitted constants, and a typical per-pair gradient has magnitude $\sqrt{V(n)}$.
 \end{assumption}
@@ -260,7 +269,7 @@ The control without a global layer stays near chance (Table~\ref{tab:recall}, Fi
 
 \textit{For quantum machine learning.} The cost theorem isolates four levers: the circuits per pair $\kappa$, the per-pair floor $N^2\kappa$, the gradient-shot requirement $p/(2V)$, and the shot rate. Practical training would need progress on several at once: gradient estimators with backpropagation-like scaling for entangling ansatzes~\cite{bowles2025backprop}; gradient variance decaying more slowly than the score mean squared, which in practice means local rather than global observables~\cite{cerezo2021cost}; non-pairwise readouts that avoid $N^2$ circuits~\cite{pecilli2026overlap}; and shot rates of $10^5$ per second or more.
 
-\textit{Limitations.} The scaling laws are measured up to 12 qubits and extrapolated (Assumption~\ref{ass:scaling}). The cost model counts shots and floating-point operations and ignores error correction, compilation, communication and classical-quantum latency, all of which would add to the quantum side. The recall experiments use small two-layer models and synthetic data. The recall gap to softmax attention at $K=32$ and the failure of all models at $K=64$ reflect a fixed 2{,}000-step budget; longer training or larger states may change the ranking.
+\textit{Limitations.} The scaling laws are measured in simulation up to 12 qubits, checked on hardware up to 8 qubits for one design, and extrapolated (Assumption~\ref{ass:scaling}). The cost model counts shots and floating-point operations and ignores error correction, compilation, communication and classical-quantum latency, all of which would add to the quantum side. The recall experiments use small two-layer models and synthetic data. The recall gap to softmax attention at $K=32$ and the failure of all models at $K=64$ reflect a fixed 2{,}000-step budget; longer training or larger states may change the ranking.
 
 % ===========================================================================
 \section{Conclusion}
