@@ -1,6 +1,6 @@
-# Quantum Attention Is a Kernel, Not (Yet) a Speedup
+# A Linear-Time Attention Kernel from Quantum Circuits
 
-**Training-Cost Bounds and Linear-Time Recall for Transformers**
+**Recall Gains, Training-Cost Limits and Hardware Evidence**
 
 > **Quantum attention is too costly to train on quantum hardware today, but the kernel inside it is useful for recall tasks in AI right now.**
 
