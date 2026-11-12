@@ -27,6 +27,7 @@ Builds on Paper 1: https://github.com/Chandra953/Quantum-Fidelity-Attention
 | Based (Taylor kernel) stays 4–13 points ahead; no fixed-state method survives K=32 | `results/recall_*.csv` |
 | Same scaling picture for a second circuit design (RX encoding, RY-RZ layers, CZ chain); sweep within 3.4x | `src/scaling_design_b.py`, `results/scaling_design_b.csv` |
 | IBM hardware (ibm_fez, 120 circuits): measured scores match exact ones, r = 0.998; mean decays as 2.09^-n | `src/hardware_ibm.py`, `results/hardware_ibm.csv` |
+| Reproducible hybrid workflow: 36 automated checks (GitHub Actions) tie every number to the data; resumable, seeded runs; dry-run stage before hardware | `tests/`, `.github/workflows/tests.yml` |
 | Character-level WikiText-2: no gain from CPLA (2.081 BPC vs 1.986 for linear attention); its benefit is specific to recall | `src/lm.py`, `results/lm_wikitext2.csv` |
 
 ![Feasibility map](assets/feasibility.png)
@@ -49,7 +50,7 @@ results/             raw CSVs behind every number
 ## Reproduce
 ```bash
 pip install -r requirements.txt
-pytest -q tests          # 35 checks: Proposition 1, causality, cost model, every reported number
+pytest -q tests          # 36 checks: Proposition 1, causality, cost model, every reported number
 python src/scaling.py 400
 python src/feasibility.py
 W=window-w4; python src/recall.py "$W+softmax,$W+cpla,$W+cp-softmax,$W+taylor-d8,$W+taylor-d16,$W+elu-d81,$W+performer-d16,$W+window-w4" 8,16,32 3

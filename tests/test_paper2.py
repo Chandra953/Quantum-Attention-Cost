@@ -234,3 +234,17 @@ def test_wikitext_table_matches_results():
     assert round(m["cpla"] - m["elu-d81"], 3) == 0.095 and round(lr["cpla"] - lr["elu-d81"], 3) == 0.100
     assert round(m["cpla"] - m["taylor-d8"], 3) == 0.065 and round(lr["cpla"] - lr["taylor-d8"], 3) == 0.076
     assert (d.test_longrange_positions == 16753).all()
+
+
+def test_compiled_circuit_sizes_match_paper():
+    """Table: depth and CZ count of the hardware circuits compiled for ibm_fez (reference compilation)."""
+    fake = pytest.importorskip("qiskit_ibm_runtime.fake_provider")
+    from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+    import hardware_ibm as H
+    pm = generate_preset_pass_manager(optimization_level=3, backend=fake.FakeFez(), seed_transpiler=0)
+    jobs = H.build([2, 3, 4, 5, 6, 8], 2, 20, 2026)
+    expected = {2: (13, 2), 3: (43, 12), 4: (46, 16), 5: (59, 22), 6: (123, 48), 8: (115, 40)}
+    for n, (depth, cz) in expected.items():
+        circs = [pm.run(j["circuit"]) for j in jobs if j["n"] == n]
+        assert round(np.mean([c.depth() for c in circs])) == depth, n
+        assert round(np.mean([c.count_ops().get("cz", 0) for c in circs])) == cz, n
