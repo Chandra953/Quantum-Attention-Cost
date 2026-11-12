@@ -202,3 +202,35 @@ def test_hardware_results_match_their_circuits():
     assert np.allclose([j["exact"] for j in jobs], d.exact.values, atol=1e-12)
     assert round(np.corrcoef(d.exact, d.measured)[0, 1], 3) == 0.998
     assert (d.measured - d.exact).abs().mean() == pytest.approx(0.007, abs=5e-4)
+
+
+@pytest.mark.parametrize("L,grad_rate,score_rate", [(2, 3.39, 2.01), (4, 3.70, 2.01)])
+def test_design_b_rates_match_paper(L, grad_rate, score_rate):
+    f = FE.fits(L, os.path.join(ROOT, "results", "scaling_design_b.csv"))
+    assert round(1 / f["rV"], 2) == grad_rate
+    assert round(1 / f["rp"], 2) == score_rate
+
+
+def test_design_b_sweep_within_factor_3_4_of_design_a():
+    import pandas as pd
+    k = ["gradient", "coherent", "shot_rate"]
+    a = pd.read_csv(os.path.join(ROOT, "results", "feasibility_sensitivity.csv")).groupby(k).min_quantum_seconds.min()
+    b = pd.read_csv(os.path.join(ROOT, "results", "feasibility_sensitivity_design_b.csv")).groupby(k).min_quantum_seconds.min()
+    r = b / a
+    assert len(r) == 12
+    assert round(max(r.max(), 1 / r.min()), 1) == 3.4
+
+
+def test_wikitext_table_matches_results():
+    import pandas as pd
+    d = pd.read_csv(os.path.join(ROOT, "results", "lm_wikitext2.csv"))
+    g = d.groupby("model")
+    assert (g.size() == 2).all() and len(g) == 6
+    m, lr = g.test_bpc.mean(), g.test_longrange_bpc.mean()
+    table = {"window-w64": (1.899, 1.236), "softmax": (1.906, 1.241), "performer-d16": (1.981, 1.343),
+             "elu-d81": (1.986, 1.355), "taylor-d8": (2.016, 1.379), "cpla": (2.081, 1.455)}
+    for k, (a, b) in table.items():
+        assert round(m[k], 3) == a and round(lr[k], 3) == b, k
+    assert round(m["cpla"] - m["elu-d81"], 3) == 0.095 and round(lr["cpla"] - lr["elu-d81"], 3) == 0.100
+    assert round(m["cpla"] - m["taylor-d8"], 3) == 0.065 and round(lr["cpla"] - lr["taylor-d8"], 3) == 0.076
+    assert (d.test_longrange_positions == 16753).all()

@@ -25,6 +25,9 @@ Builds on Paper 1: https://github.com/Chandra953/Quantum-Fidelity-Attention
 | Exact 3^n feature map for the cosine-product kernel (CPLA) | Proposition 1, `src/recall.py` |
 | Same 81-dim state: CPLA 86% recall at K=16 vs 12.5% for linear elu+1 attention | `results/recall_*.csv` |
 | Based (Taylor kernel) stays 4–13 points ahead; no fixed-state method survives K=32 | `results/recall_*.csv` |
+| Same scaling picture for a second circuit design (RX encoding, RY-RZ layers, CZ chain); sweep within 3.4x | `src/scaling_design_b.py`, `results/scaling_design_b.csv` |
+| IBM hardware (ibm_fez, 120 circuits): measured scores match exact ones, r = 0.998; mean decays as 2.09^-n | `src/hardware_ibm.py`, `results/hardware_ibm.csv` |
+| Character-level WikiText-2: no gain from CPLA (2.081 BPC vs 1.986 for linear attention); its benefit is specific to recall | `src/lm.py`, `results/lm_wikitext2.csv` |
 
 ![Feasibility map](assets/feasibility.png)
 ![Recall](assets/recall.png)
@@ -32,6 +35,9 @@ Builds on Paper 1: https://github.com/Chandra953/Quantum-Fidelity-Attention
 ## Layout
 ```
 src/scaling.py       gradient variance and score mean vs qubits (n = 2..12)
+src/scaling_design_b.py   the same for a second circuit design
+src/hardware_ibm.py  fidelity scores on IBM quantum hardware (needs your own IBM account)
+src/lm.py            character-level WikiText-2 language modelling
 src/feasibility.py   quantum vs exact-classical training cost, sensitivity sweep
 src/recall.py        multi-query associative recall, 2-layer Transformers, 8 attention variants
 tests/               checks that the code matches the paper and the reported numbers follow from results/
@@ -43,10 +49,13 @@ results/             raw CSVs behind every number
 ## Reproduce
 ```bash
 pip install -r requirements.txt
-pytest -q tests          # 29 checks: Proposition 1, causality, cost model, reported numbers
+pytest -q tests          # 35 checks: Proposition 1, causality, cost model, every reported number
 python src/scaling.py 400
 python src/feasibility.py
 W=window-w4; python src/recall.py "$W+softmax,$W+cpla,$W+cp-softmax,$W+taylor-d8,$W+taylor-d16,$W+elu-d81,$W+performer-d16,$W+window-w4" 8,16,32 3
+python src/scaling_design_b.py 1600 && python src/feasibility.py --design-b
+bash -c "mkdir -p data/wikitext-2 && for s in train valid test; do curl -sL -o data/wikitext-2/$s.txt https://raw.githubusercontent.com/pytorch/examples/main/word_language_model/data/wikitext-2/$s.txt; done"
+python src/lm.py "softmax,cpla,taylor-d8,elu-d81,performer-d16,window-w64" 2500 2
 cd paper && python make_figures.py && latexmk -pdf paper.tex
 ```
 
