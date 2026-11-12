@@ -9,7 +9,9 @@ Models: 4-layer causal pre-LN Transformers, d = 128, 4 heads, context 256 charac
 Layers alternate a sliding-window softmax layer (window 64) with a global layer whose
 attention is the variant under test, the same hybrid design as the recall experiment:
     window-w64 + X + window-w64 + X,   X in {softmax, cpla, taylor-d8, elu-d81, performer-d16, window-w64}
-Metric: bits per character (BPC) on the held-out test split.
+Metrics: bits per character (BPC) on the held-out test split, overall and on "long-range copy"
+positions, where the next character is predictable only from text more than 64 characters back
+(outside the sliding window), so only the global layer can help.
 
 Usage: python src/lm.py "softmax,cpla" 3000 2      # kinds, training steps, seeds
 """
@@ -29,6 +31,7 @@ from recall import Block  # noqa: E402
 
 DATA = os.path.join(HERE, "..", "data", "wikitext-2")
 OUT = os.path.join(HERE, "..", "results", "lm_wikitext2.csv")
+CKPT = os.path.join(HERE, "..", "checkpoints")
 torch.set_num_threads(max(1, os.cpu_count() or 1))
 
 
@@ -65,22 +68,52 @@ def batches(data, B, ctx, g):
     return x, y
 
 
+def long_range_copy_mask(window, k=8, gap=64):
+    """True at position t when the next character can be copied from an earlier occurrence of the
+    same k-character context that lies >= gap positions back (outside the sliding window), and no
+    occurrence of that context lies inside the window. Only a global layer can use such positions.
+    window: 1-D tensor of ctx + 1 characters (inputs plus the final target)."""
+    w = window.tolist()
+    ctx = len(w) - 1
+    seen = {}                                   # k-gram ending at j -> list of j
+    mask = [False] * ctx
+    for t in range(ctx):
+        if t >= k - 1:
+            key = tuple(w[t - k + 1:t + 1])
+            prev = seen.get(key, [])
+            far = [j for j in prev if t - (j + 1) >= gap]
+            near = [j for j in prev if t - (j + 1) < gap]
+            mask[t] = bool(far) and not near and any(w[j + 1] == w[t + 1] for j in far)
+            seen.setdefault(key, []).append(t)
+    return torch.tensor(mask)
+
+
+_MASKS = {}
+
+
 @torch.no_grad()
 def evaluate(model, data, ctx, max_windows=None):
-    """Mean BPC over non-overlapping windows of the split (every character predicted once)."""
+    """BPC over non-overlapping windows (every character predicted once), overall and on the
+    long-range copy positions defined by long_range_copy_mask."""
     model.eval()
     n = (len(data) - 1) // ctx
     if max_windows:
         n = min(n, max_windows)
-    total, count = 0.0, 0
+    key = (id(data), ctx, n)
+    if key not in _MASKS:
+        _MASKS[key] = torch.stack([long_range_copy_mask(data[r * ctx:(r + 1) * ctx + 1]) for r in range(n)])
+    masks = _MASKS[key]
+    total, count, lr_total, lr_count = 0.0, 0, 0.0, 0
     for i in range(0, n, 32):
         rows = range(i, min(i + 32, n))
         x = torch.stack([data[r * ctx:(r + 1) * ctx] for r in rows])
         y = torch.stack([data[r * ctx + 1:(r + 1) * ctx + 1] for r in rows])
-        loss = F.cross_entropy(model(x).flatten(0, 1), y.flatten(), reduction="sum")
-        total += loss.item(); count += y.numel()
+        nll = F.cross_entropy(model(x).flatten(0, 1), y.flatten(), reduction="none")
+        m = masks[i:i + len(rows)].flatten()
+        total += nll.sum().item(); count += y.numel()
+        lr_total += nll[m].sum().item(); lr_count += int(m.sum())
     model.train()
-    return total / count / math.log(2)
+    return total / count / math.log(2), lr_total / max(lr_count, 1) / math.log(2), lr_count
 
 
 def run(kind, seed, enc, vocab, steps=3000, B=32, ctx=256, d=128, heads=4, lr=2e-3):
@@ -99,8 +132,12 @@ def run(kind, seed, enc, vocab, steps=3000, B=32, ctx=256, d=128, heads=4, lr=2e
         opt.step(); sched.step()
         if step % 500 == 0:
             print(f"  {kind} seed {seed} step {step} train_bpc {loss.item() / math.log(2):.3f}", flush=True)
-    return dict(model=kind, seed=seed, steps=steps, valid_bpc=evaluate(model, enc["valid"], ctx),
-                test_bpc=evaluate(model, enc["test"], ctx),
+    os.makedirs(CKPT, exist_ok=True)
+    torch.save(model.state_dict(), os.path.join(CKPT, f"{kind}_s{seed}_{steps}.pt"))
+    v, v_lr, _ = evaluate(model, enc["valid"], ctx)
+    t, t_lr, n_lr = evaluate(model, enc["test"], ctx)
+    return dict(model=kind, seed=seed, steps=steps, valid_bpc=v, test_bpc=t, valid_longrange_bpc=v_lr,
+                test_longrange_bpc=t_lr, test_longrange_positions=n_lr,
                 params=sum(p.numel() for p in model.parameters()), seconds=round(time.time() - t0))
 
 

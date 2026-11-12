@@ -16,3 +16,4 @@ paper/*.blg
 paper/*.out
 logs/
 results/hardware_ibm_dryrun.csv
+checkpoints/
